@@ -1,26 +1,38 @@
-from llama_index.core import SimpleDirectoryReader, VectorStoreIndex
+from llama_index.core import SimpleDirectoryReader, VectorStoreIndex, Settings
+from llama_index.embeddings.ollama import OllamaEmbedding
 from llama_index.llms.ollama import Ollama
 
 
+ollama_llm = Ollama(
+    model='qwen3:0.6b',
+    base_url="http://localhost:11434",
+    request_timeout=60
+)
+ollama_embed_model = OllamaEmbedding(
+    model_name='bge-m3',
+    base_url="http://localhost:11434"
+)
+Settings.llm = ollama_llm
+Settings.embed_model = ollama_embed_model
+
 def answer_with_rag(question: str):
     # 读取文档
-    documents = SimpleDirectoryReader('docs').load_data()
+    documents = SimpleDirectoryReader(
+        input_files=['./docs/website/content/zh-cn/docs/concepts/overview/components.md']
+    ).load_data()
     # 构建索引
     index = VectorStoreIndex.from_documents(documents)
     # 创建查询引擎
-    query_engine = index.as_query_engine(
-        retriever_mode='hybrid',
-        similarity_top_k=3,
-        retriever_kwargs={'similarity_top_k': 3}
-    )
-    print(query_engine.query(question))
+    query_engine = index.as_query_engine()
+    response = query_engine.query(question)
+    print(response.response)
 
 
 def answer_without_rag(question: str):
-    llm = Ollama(model='qwen3:0.6b', request_timeout=120)
-    response = llm.complete(question)
+    response = ollama_llm.complete(question)
     print(response.text)
 
 if __name__ == '__main__':
-    question = '请用中文回答：请描述一下你的工作环境。'
-    answer_without_rag(question)
+    question = 'k8s有那些核心组件'
+    # answer_without_rag(question)
+    answer_with_rag(question)
